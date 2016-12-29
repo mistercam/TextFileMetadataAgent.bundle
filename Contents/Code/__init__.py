@@ -89,11 +89,12 @@ class TextFileMetadataAgent(Agent.Movies):
     path=file_components[0]    
     txtfile=path+"/"+filename+".txt"
 
-    Log("filenames: '%s', '%s'" % (filename, txtfile))
+    if (os.path.isfile(txtfile)):
+      Log("filenames: '%s', '%s'" % (filename, txtfile))
 
-    metamap = TextFileMetadataAgent.parseFile(TextFileMetadataAgent.readFile(txtfile).splitlines())
+      metamap = TextFileMetadataAgent.parseFile(TextFileMetadataAgent.readFile(txtfile).splitlines())
 
-    self.processCast(metadata, metamap.get(self.CAST_KEY))
-    self.processDescription(metadata, metamap.get(self.DESCRIPTION_KEY))
-    self.processStudio(metadata, metamap.get(self.STUDIO_KEY))
-    self.processTitle(metadata, filename)
+      self.processCast(metadata, metamap.get(self.CAST_KEY))
+      self.processDescription(metadata, metamap.get(self.DESCRIPTION_KEY))
+      self.processStudio(metadata, metamap.get(self.STUDIO_KEY))
+      self.processTitle(metadata, filename)
