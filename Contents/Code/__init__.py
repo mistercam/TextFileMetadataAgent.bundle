@@ -14,15 +14,19 @@
 
 import re
 import os
+from datetime import datetime
 
 def Start():
   HTTP.CacheTime             = CACHE_1DAY
   HTTP.Headers['User-Agent'] = 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.2; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0)'
 
 class TextFileMetadataAgent(Agent.Movies):
+  TITLE_KEY = "TITLE"
   CAST_KEY = "CAST"
   DESCRIPTION_KEY = "DESCRIPTION"
   STUDIO_KEY = "STUDIO"
+  COLLECTION_KEY = "TAGS"
+  DATE_KEY = "DATE"
 
   name = 'Text File Metadata Agent'
   primary_provider = False
@@ -30,6 +34,9 @@ class TextFileMetadataAgent(Agent.Movies):
   
   @staticmethod
   def parseFile(file_contents):
+    '''
+    Parses the file into a map
+    '''
     file_metadata={}
     for line in file_contents:
       k, v = line.split('=')
@@ -52,38 +59,77 @@ class TextFileMetadataAgent(Agent.Movies):
     return data
 
   def processCast(self, metadata, cast):
+    '''
+    Sets the cast
+    '''
     if (cast == None) or (cast.strip() == ''):
       return
 
     metadata.roles.clear()
     castmembers = cast.split(', ')
     for c in castmembers:
-      if (c.strip != ''):
-        metadata.roles.new().name = c
-      Log("cast member: '%s'" % (c))
+      c_stripped = c.strip()
+      if (c_stripped != ''):
+        metadata.roles.new().name = c_stripped
+        Log("cast member: '%s'" % (c_stripped))
 
   def processDescription(self, metadata, description):
+    '''
+    Sets the description
+    '''
     if (description == None) or (description.strip() == ''):
       return
     metadata.summary=description
     Log("description: '%s'" % (description))
 
+  def processDate(self, metadata, date):
+    '''
+    Sets the originally available at date
+    '''
+    if (date == None) or (re.match("^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}$", date.strip()) is None):
+      return
+    d = datetime.strptime(date.strip(), '%Y-%m-%d')
+    metadata.originally_available_at = d
+    Log("originally available at: '%s'" % (d))
+
   def processTitle(self, metadata, title):
+    '''
+    Sets the title
+    '''
     if (title == None) or (title.strip() == ''):
       return
-    metadata.title=title
-    Log("title: '%s'" % (title))
+    title_stripped = title.strip()
+    metadata.title=title_stripped
+    Log("title: '%s'" % (title_stripped))
 
   def processStudio(self, metadata, studio):
+    '''
+    Sets the studio
+    '''
     if (studio == None) or (studio.strip() == ''):
       return
     metadata.studio = studio
     Log("studio: '%s'" % (studio))
 
-  def search(self, results, media, lang, manual=False):
+  def processCollection(self, metadata, collection):
+    '''
+    Sets the collection (tags)
+    '''
+    if (collection == None) or (collection.strip() == ''):
+      return
+
+    metadata.collections.clear()
+    tags = collection.split('|')
+    for t in tags:
+      t_stripped = t.strip()
+      if (t_stripped != ''):
+        metadata.collections.add(t_stripped)
+        Log("tag: '%s'" % t_stripped)
+
+  def search(self, results, media, lang, manual=True):
     results.Append(MetadataSearchResult(id = 'null', score = 100))
 
-  def update(self, metadata, media, lang, force=False):
+  def update(self, metadata, media, lang, force=True):
     file_components=os.path.split(media.items[0].parts[0].file)
     filename=file_components[1]
     path=file_components[0]    
@@ -97,4 +143,7 @@ class TextFileMetadataAgent(Agent.Movies):
       self.processCast(metadata, metamap.get(self.CAST_KEY))
       self.processDescription(metadata, metamap.get(self.DESCRIPTION_KEY))
       self.processStudio(metadata, metamap.get(self.STUDIO_KEY))
-      self.processTitle(metadata, filename)
+      self.processTitle(metadata, metamap.get(self.TITLE_KEY))
+      self.processCollection(metadata, metamap.get(self.COLLECTION_KEY))
+      self.processDate(metadata, metamap.get(self.DATE_KEY))
+      
